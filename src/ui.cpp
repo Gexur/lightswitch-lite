@@ -780,14 +780,14 @@ namespace
         return control;
     }
 
-    HWND makeCombo(Ui* u, int id)
+    HWND makeCombo(Ui* u, int id, int count)
     {
         HWND combo = makeControl(u, L"COMBOBOX", nullptr, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP,
                                  WS_EX_CLIENTEDGE, id);
         if (!combo)
             return nullptr;
         wchar_t item[8];
-        for (int i = 0; i < 60; ++i)
+        for (int i = 0; i < count; ++i)
         {
             swprintf_s(item, L"%02d", i);
             SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
@@ -817,10 +817,10 @@ namespace
                                       BS_OWNERDRAW | WS_TABSTOP, 0, modes[i].id);
         }
 
-        u->hLightH = makeCombo(u, ID_LIGHT_H);
-        u->hLightM = makeCombo(u, ID_LIGHT_M);
-        u->hDarkH = makeCombo(u, ID_DARK_H);
-        u->hDarkM = makeCombo(u, ID_DARK_M);
+        u->hLightH = makeCombo(u, ID_LIGHT_H, 24);
+        u->hLightM = makeCombo(u, ID_LIGHT_M, 60);
+        u->hDarkH = makeCombo(u, ID_DARK_H, 24);
+        u->hDarkM = makeCombo(u, ID_DARK_M, 60);
 
         u->hLat = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_LAT);
         u->hLon = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_LON);
