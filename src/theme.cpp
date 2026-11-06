@@ -1,4 +1,4 @@
-#include "core.h"
+﻿#include "core.h"
 
 namespace
 {
@@ -9,7 +9,8 @@ namespace
         L"default$windows.data.bluelightreduction.bluelightreductionstate\\"
         L"windows.data.bluelightreduction.bluelightreductionstate";
 
-    // One system-wide notification is enough, and cheap.
+    // Tells the shell the immersive colors changed. Explorer repaints the
+    // taskbar and Start; secondary-monitor taskbars need this as well.
     void notifyThemeChange()
     {
         DWORD_PTR ignored = 0;
@@ -25,6 +26,7 @@ namespace
                             SMTO_ABORTIFHUNG, 1000, &ignored);
     }
 }
+
 
 bool themeRead(bool system, bool& light)
 {

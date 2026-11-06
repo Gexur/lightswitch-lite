@@ -12,9 +12,6 @@ namespace
     constexpr UINT kShowMessage = WM_APP + 11;
     constexpr UINT kTrayId = 1;
     constexpr UINT kTimerId = 1;
-    constexpr UINT kHotkeyId = 1;
-    constexpr UINT kHotkeyMods = MOD_WIN | MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT;
-    constexpr UINT kHotkeyKey = 'D';
 
     HINSTANCE gInstance = nullptr;
     HWND gMain = nullptr;
@@ -362,13 +359,6 @@ namespace
         return true;
     }
 
-    void registerHotkey()
-    {
-        UnregisterHotKey(gMain, kHotkeyId);
-        if (gCfg.hotkeyOn)
-            RegisterHotKey(gMain, kHotkeyId, kHotkeyMods, kHotkeyKey);
-    }
-
     void onPersonalizeChanged()
     {
         bool systemLight = false;
@@ -471,7 +461,7 @@ namespace
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, 110, L"Light theme");
         AppendMenuW(menu, MF_STRING, 111, L"Dark theme");
-        AppendMenuW(menu, MF_STRING, 112, L"Toggle theme\tWin+Ctrl+Shift+D");
+        AppendMenuW(menu, MF_STRING, 112, L"Toggle theme");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, 120, L"Settings...");
         AppendMenuW(menu, MF_STRING | (autostartGet() ? MF_CHECKED : 0), 121, L"Start with Windows");
@@ -550,11 +540,6 @@ namespace
                 evaluate();
                 resetTimer();
             }
-            return 0;
-
-        case WM_HOTKEY:
-            if (wparam == kHotkeyId)
-                toggleTheme();
             return 0;
 
         case WM_POWERBROADCAST:
@@ -701,7 +686,6 @@ void appShowSettings()
 void appConfigChanged()
 {
     cfgLoad(gCfg);
-    registerHotkey();
     gOverride = false;
     configureNightLight();
     evaluate();
@@ -810,7 +794,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         ZeroMemory(gStatus, sizeof(*gStatus));
 
     addTrayIcon();
-    registerHotkey();
     armPersonalize();
     resetTimer();
     evaluate();
@@ -881,7 +864,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 
     removeTrayIcon();
     uiDestroy();
-    UnregisterHotKey(gMain, kHotkeyId);
 
     if (gStatus)
         UnmapViewOfFile(gStatus);

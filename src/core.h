@@ -1,4 +1,4 @@
-// LightSwitch Lite - shared core.
+﻿// LightSwitch Lite - shared core.
 // Original implementation: no service, no JSON, no WinRT.
 #pragma once
 
@@ -26,11 +26,8 @@ struct Config
     int darkMin;    // minute of day when the dark theme starts
     double lat;
     double lon;
-    int riseOffset; // minutes added to sunrise
-    int setOffset;  // minutes added to sunset
     bool targetSystem;
     bool targetApps;
-    bool hotkeyOn;
 };
 
 // --- settings (HKCU\Software\LightSwitchLite) ---

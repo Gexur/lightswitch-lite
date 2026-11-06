@@ -1,4 +1,4 @@
-﻿#include "core.h"
+#include "core.h"
 
 #include <dwmapi.h>
 #include <uxtheme.h>
@@ -21,19 +21,16 @@ namespace
         ID_DARK_M,
         ID_LAT = 1020,
         ID_LON,
-        ID_RISE,
-        ID_SET,
         ID_SYS = 1030,
         ID_APPS,
         ID_AUTO,
-        ID_HOTKEY,
         ID_CLOSE = 1040,
         ID_RESET,
     };
 
     // Layout is designed for 96 DPI and scaled per monitor.
     constexpr int kWidth = 460;
-    constexpr int kHeight = 664;
+    constexpr int kHeight = 578;
     constexpr int kHeader = 64;
 
     constexpr wchar_t kClassName[] = L"LSL.SettingsWindow";
@@ -45,6 +42,7 @@ namespace
         bool autoStart;
         bool dark;
         bool loading;
+        bool badInput;
         int dpi;
 
         HFONT fontBody;
@@ -75,12 +73,9 @@ namespace
         HWND hDarkM;
         HWND hLat;
         HWND hLon;
-        HWND hRise;
-        HWND hSet;
         HWND hSys;
         HWND hApps;
         HWND hAuto;
-        HWND hHotkey;
         HWND hClose;
         HWND hReset;
         HICON hIcon;
@@ -223,7 +218,7 @@ namespace
     void applyControlTheme(Ui* u)
     {
         const wchar_t* theme = u->dark ? L"DarkMode_CFD" : nullptr;
-        HWND controls[] = {u->hLightH, u->hLightM, u->hDarkH, u->hDarkM, u->hLat, u->hLon, u->hRise, u->hSet};
+        HWND controls[] = {u->hLightH, u->hLightM, u->hDarkH, u->hDarkM, u->hLat, u->hLon};
         for (HWND control : controls)
         {
             if (control)
@@ -238,8 +233,7 @@ namespace
         case Mode::Fixed:
             return L"Switches to light and dark at the times you set, every day.";
         case Mode::Solar:
-            return L"Computes sunrise and sunset for your location, day by day. "
-                   L"The offset lets you shift the switch earlier or later.";
+            return L"Computes sunrise and sunset for your location, day by day.";
         case Mode::NightLight:
             return L"Follows the Windows Night light: the theme goes dark while night light "
                    L"is on.";
@@ -248,37 +242,31 @@ namespace
         }
     }
 
+    // Accepts "12.5", "12,5" and "  +12.5 ". A comma is what most keyboards
+    // produce in Spanish-speaking regions, and silently rejecting it made the
+    // field look like it never saved.
     bool parseDouble(const wchar_t* value, double low, double high, double& out)
     {
-        while (*value == L' ')
-            ++value;
-        wchar_t* end = nullptr;
-        const double parsed = wcstod(value, &end);
-        if (end == value)
+        wchar_t buffer[64] = {};
+        int used = 0;
+        for (const wchar_t* p = value; *p && used < 63; ++p)
+        {
+            if (*p == L' ')
+                continue;
+            buffer[used++] = (*p == L',') ? L'.' : (*p == 0x2212 ? L'-' : *p);
+        }
+        buffer[used] = L'\0';
+        if (used == 0)
             return false;
-        while (*end == L' ')
-            ++end;
-        if (*end != L'\0' || !std::isfinite(parsed) || parsed < low || parsed > high)
+
+        wchar_t* end = nullptr;
+        const double parsed = wcstod(buffer, &end);
+        if (end == buffer || *end != L'\0' || !std::isfinite(parsed) || parsed < low || parsed > high)
             return false;
         out = parsed;
         return true;
     }
 
-    bool parseInteger(const wchar_t* value, int low, int high, int& out)
-    {
-        while (*value == L' ')
-            ++value;
-        wchar_t* end = nullptr;
-        const long parsed = wcstol(value, &end, 10);
-        if (end == value)
-            return false;
-        while (*end == L' ')
-            ++end;
-        if (*end != L'\0' || parsed < low || parsed > high)
-            return false;
-        out = static_cast<int>(parsed);
-        return true;
-    }
 
 
     void syncEnabled(Ui* u)
@@ -292,8 +280,6 @@ namespace
         EnableWindow(u->hDarkM, fixedMode);
         EnableWindow(u->hLat, solar);
         EnableWindow(u->hLon, solar);
-        EnableWindow(u->hRise, solar);
-        EnableWindow(u->hSet, solar);
     }
 
     void syncControls(Ui* u);
@@ -301,8 +287,7 @@ namespace
     bool sameConfig(const Config& a, const Config& b)
     {
         return a.mode == b.mode && a.lightMin == b.lightMin && a.darkMin == b.darkMin && a.lat == b.lat &&
-               a.lon == b.lon && a.riseOffset == b.riseOffset && a.setOffset == b.setOffset &&
-               a.targetSystem == b.targetSystem && a.targetApps == b.targetApps && a.hotkeyOn == b.hotkeyOn;
+               a.lon == b.lon && a.targetSystem == b.targetSystem && a.targetApps == b.targetApps;
     }
 
     void commit(Ui* u)
@@ -320,27 +305,30 @@ namespace
         InvalidateRect(u->hwnd, nullptr, FALSE);
     }
 
-    void readEditors(Ui* u)
+    // Returns false when a non-empty field cannot be parsed, so the window can
+    // say so instead of silently reverting the text.
+    bool readEditors(Ui* u)
     {
+        if (!u->hLat || !u->hLon)
+            return true;
+
         wchar_t buffer[64] = {};
+        bool ok = true;
 
         GetWindowTextW(u->hLat, buffer, 64);
         double value = 0.0;
         if (parseDouble(buffer, -90.0, 90.0, value))
             u->cfg.lat = value;
+        else if (buffer[0] != L'\0')
+            ok = false;
 
         GetWindowTextW(u->hLon, buffer, 64);
         if (parseDouble(buffer, -180.0, 180.0, value))
             u->cfg.lon = value;
+        else if (buffer[0] != L'\0')
+            ok = false;
 
-        int offset = 0;
-        GetWindowTextW(u->hRise, buffer, 64);
-        if (parseInteger(buffer, -720, 720, offset))
-            u->cfg.riseOffset = offset;
-
-        GetWindowTextW(u->hSet, buffer, 64);
-        if (parseInteger(buffer, -720, 720, offset))
-            u->cfg.setOffset = offset;
+        return ok;
     }
 
     void readTimes(Ui* u)
@@ -376,10 +364,6 @@ namespace
         SetWindowTextW(u->hLat, buffer);
         swprintf_s(buffer, L"%.4f", u->cfg.lon);
         SetWindowTextW(u->hLon, buffer);
-        swprintf_s(buffer, L"%d", u->cfg.riseOffset);
-        SetWindowTextW(u->hRise, buffer);
-        swprintf_s(buffer, L"%d", u->cfg.setOffset);
-        SetWindowTextW(u->hSet, buffer);
 
         u->loading = false;
 
@@ -406,16 +390,13 @@ namespace
 
         place(u->hLat, 84, 228, 100, 26);
         place(u->hLon, 266, 228, 100, 26);
-        place(u->hRise, 98, 260, 54, 26);
-        place(u->hSet, 270, 260, 54, 26);
 
-        place(u->hSys, 28, 424, 404, 28);
-        place(u->hApps, 28, 456, 404, 28);
-        place(u->hAuto, 28, 542, 404, 28);
-        place(u->hHotkey, 28, 574, 404, 28);
+        place(u->hSys, 28, 356, 404, 28);
+        place(u->hApps, 28, 388, 404, 28);
+        place(u->hAuto, 28, 478, 404, 28);
 
-        place(u->hReset, 12, 624, 120, 30);
-        place(u->hClose, 352, 624, 96, 30);
+        place(u->hReset, 12, 536, 120, 30);
+        place(u->hClose, 352, 536, 96, 30);
     }
 
     void layoutWindow(Ui* u, bool center)
@@ -481,9 +462,9 @@ namespace
             DeleteObject(pen);
         };
 
-        card(12, 74, 436, 306);
-        card(12, 390, 436, 108);
-        card(12, 508, 436, 104);
+        card(12, 74, 436, 236);
+        card(12, 322, 436, 108);
+        card(12, 442, 436, 76);
 
         auto section = [&](int x, int y, const wchar_t* label) {
             RECT box{px(u, x), px(u, y), px(u, 440), px(u, y + 18)};
@@ -491,8 +472,8 @@ namespace
         };
 
         section(28, 86, L"Schedule");
-        section(28, 402, L"Apply theme to");
-        section(28, 520, L"System and startup");
+        section(28, 334, L"Apply theme to");
+        section(28, 454, L"System and startup");
 
         auto label = [&](int x, int y, int w, const wchar_t* value) {
             RECT box{px(u, x), px(u, y), px(u, x + w), px(u, y + 26)};
@@ -505,17 +486,21 @@ namespace
         label(236, 186, 10, L":");
         label(28, 228, 54, L"Latitude");
         label(200, 228, 64, L"Longitude");
-        label(28, 260, 68, L"Sunrise");
-        label(156, 260, 30, L"min");
-        label(200, 260, 68, L"Sunset");
-        label(328, 260, 30, L"min");
-
-        RECT hint{px(u, 28), px(u, 296), px(u, 432), px(u, 368)};
+        RECT hint{px(u, 28), px(u, 262), px(u, 432), px(u, 302)};
         const bool missingCoords = u->cfg.mode == Mode::Solar && u->cfg.lat == 0.0 && u->cfg.lon == 0.0;
-        text(dc,
-             missingCoords ? L"Enter your latitude and longitude: without them the solar schedule is useless."
-                             : hintFor(u->cfg.mode),
-             hint, missingCoords ? u->colAccent : u->colSub, u->fontSmall, DT_LEFT | DT_TOP | DT_WORDBREAK);
+        const wchar_t* hintText = hintFor(u->cfg.mode);
+        COLORREF hintColor = u->colSub;
+        if (u->badInput)
+        {
+            hintText = L"Invalid number. Use digits and a dot, for example -34.6037 (a comma works too).";
+            hintColor = u->colAccent;
+        }
+        else if (missingCoords)
+        {
+            hintText = L"Enter your latitude and longitude: without them the solar schedule is useless.";
+            hintColor = u->colAccent;
+        }
+        text(dc, hintText, hint, hintColor, u->fontSmall, DT_LEFT | DT_TOP | DT_WORDBREAK);
     }
 
     bool checkValue(const Ui* u, int id)
@@ -528,8 +513,6 @@ namespace
             return u->cfg.targetApps;
         case ID_AUTO:
             return u->autoStart;
-        case ID_HOTKEY:
-            return u->cfg.hotkeyOn;
         default:
             return false;
         }
@@ -557,7 +540,7 @@ namespace
             return;
         }
 
-        if (id >= ID_SYS && id <= ID_HOTKEY)
+        if (id == ID_SYS || id == ID_APPS || id == ID_AUTO)
         {
             FillRect(dc, &box, u->brushCard);
             const bool on = checkValue(u, id);
@@ -678,30 +661,34 @@ namespace
 
             case ID_LAT:
             case ID_LON:
-            case ID_RISE:
-            case ID_SET:
                 if (HIWORD(wparam) == EN_CHANGE && !u->loading)
                 {
-                    readEditors(u);
-                    commit(u);
+                    const bool valid = readEditors(u);
+                    u->badInput = !valid;
+                    if (valid)
+                        commit(u);
+                    InvalidateRect(u->hwnd, nullptr, FALSE);
                 }
                 else if (HIWORD(wparam) == EN_KILLFOCUS && !u->loading)
                 {
-                    syncControls(u);
+                    const bool valid = readEditors(u);
+                    u->badInput = !valid;
+                    if (valid)
+                        commit(u);
+                    else
+                        syncControls(u); // restore the last accepted value
+                    InvalidateRect(u->hwnd, nullptr, FALSE);
                 }
                 return 0;
 
             case ID_SYS:
             case ID_APPS:
-            case ID_HOTKEY:
                 if (HIWORD(wparam) != BN_CLICKED)
                     return 0;
                 if (LOWORD(wparam) == ID_SYS)
                     u->cfg.targetSystem = !u->cfg.targetSystem;
-                else if (LOWORD(wparam) == ID_APPS)
-                    u->cfg.targetApps = !u->cfg.targetApps;
                 else
-                    u->cfg.hotkeyOn = !u->cfg.hotkeyOn;
+                    u->cfg.targetApps = !u->cfg.targetApps;
                 commit(u);
                 InvalidateRect(reinterpret_cast<HWND>(lparam), nullptr, FALSE);
                 return 0;
@@ -810,6 +797,9 @@ namespace
 
     void createChildren(Ui* u)
     {
+        // Creating the edit controls fires EN_CHANGE with their placeholder
+        // text, which would be read back and saved over the real settings.
+        u->loading = true;
         struct ModeButton
         {
             int id;
@@ -834,20 +824,17 @@ namespace
 
         u->hLat = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_LAT);
         u->hLon = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_LON);
-        u->hRise = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_RISE);
-        u->hSet = makeControl(u, L"EDIT", L"0", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_SET);
 
         u->hSys = makeControl(u, L"BUTTON", L"Windows UI (taskbar, Start)",
                               BS_OWNERDRAW | WS_TABSTOP, 0, ID_SYS);
         u->hApps = makeControl(u, L"BUTTON", L"Applications and windows", BS_OWNERDRAW | WS_TABSTOP, 0, ID_APPS);
         u->hAuto = makeControl(u, L"BUTTON", L"Start with Windows", BS_OWNERDRAW | WS_TABSTOP, 0, ID_AUTO);
-        u->hHotkey = makeControl(u, L"BUTTON", L"Toggle shortcut  Win+Ctrl+Shift+D",
-                                 BS_OWNERDRAW | WS_TABSTOP, 0, ID_HOTKEY);
 
         u->hReset = makeControl(u, L"BUTTON", L"Reset", BS_OWNERDRAW | WS_TABSTOP, 0, ID_RESET);
         u->hClose = makeControl(u, L"BUTTON", L"Close", BS_OWNERDRAW | WS_TABSTOP, 0, ID_CLOSE);
 
         applyControlTheme(u);
+        u->loading = false;
     }
 
     void showWindow(Ui* u)

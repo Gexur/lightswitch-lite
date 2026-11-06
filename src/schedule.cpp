@@ -154,8 +154,8 @@ void effTimes(const Config& c, const SYSTEMTIME& now, int& lightMin, int& darkMi
         int set = 0;
         if (sunTimes(c.lat, c.lon, now.wYear, now.wMonth, now.wDay, rise, set))
         {
-            lightMin = wrapMin(rise + c.riseOffset);
-            darkMin = wrapMin(set + c.setOffset);
+            lightMin = wrapMin(rise);
+            darkMin = wrapMin(set);
             return;
         }
         // No sunrise/sunset today: fall back to a default schedule.

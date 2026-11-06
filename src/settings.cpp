@@ -62,11 +62,8 @@ void cfgDefaults(Config& c)
     c.darkMin = 20 * 60;
     c.lat = 0.0;
     c.lon = 0.0;
-    c.riseOffset = 0;
-    c.setOffset = 0;
     c.targetSystem = true;
     c.targetApps = true;
-    c.hotkeyOn = true;
 }
 
 bool cfgLoad(Config& c)
@@ -81,11 +78,8 @@ bool cfgLoad(Config& c)
     c.mode = mode <= 3 ? static_cast<Mode>(mode) : Mode::Fixed;
     c.lightMin = clampMinute(static_cast<int>(readDword(key, L"LightMinutes", static_cast<DWORD>(c.lightMin))));
     c.darkMin = clampMinute(static_cast<int>(readDword(key, L"DarkMinutes", static_cast<DWORD>(c.darkMin))));
-    c.riseOffset = static_cast<int>(readDword(key, L"SunriseOffset", 0));
-    c.setOffset = static_cast<int>(readDword(key, L"SunsetOffset", 0));
     c.targetSystem = readDword(key, L"TargetSystem", 1) != 0;
     c.targetApps = readDword(key, L"TargetApps", 1) != 0;
-    c.hotkeyOn = readDword(key, L"HotkeyEnabled", 1) != 0;
     readCoord(key, L"Latitude", 90.0, c.lat);
     readCoord(key, L"Longitude", 180.0, c.lon);
 
@@ -104,11 +98,8 @@ bool cfgSave(const Config& c)
     writeDword(key, L"Mode", static_cast<DWORD>(c.mode));
     writeDword(key, L"LightMinutes", static_cast<DWORD>(clampMinute(c.lightMin)));
     writeDword(key, L"DarkMinutes", static_cast<DWORD>(clampMinute(c.darkMin)));
-    writeDword(key, L"SunriseOffset", static_cast<DWORD>(c.riseOffset));
-    writeDword(key, L"SunsetOffset", static_cast<DWORD>(c.setOffset));
     writeDword(key, L"TargetSystem", c.targetSystem ? 1u : 0u);
     writeDword(key, L"TargetApps", c.targetApps ? 1u : 0u);
-    writeDword(key, L"HotkeyEnabled", c.hotkeyOn ? 1u : 0u);
 
     wchar_t buf[64];
     swprintf_s(buf, L"%.6f", c.lat);

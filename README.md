@@ -1,4 +1,4 @@
-# LightSwitch Lite
+﻿# LightSwitch Lite
 
 ![Windows](https://img.shields.io/badge/Windows-10%201809%2B%20%7C%2011-0078D6?logo=windows&logoColor=white)
 ![C++](https://img.shields.io/badge/C%2B%2B-Win32-00599C?logo=cplusplus&logoColor=white)
@@ -13,10 +13,10 @@ with no installer, no .NET and no dependencies: plain C++ and Win32.
 ## Features
 
 - **Fixed hours**: light and dark at the times you choose.
-- **Sunrise and sunset**: computes each day's solar times from your coordinates,
-  with a configurable offset in minutes. No API, no internet.
+- **Sunrise and sunset**: computes each day's solar times from your coordinates.
+  No API, no internet.
 - **Night light**: follows the Windows Night light state.
-- **Shortcut** `Win+Ctrl+Shift+D` to toggle instantly.
+
 - Applies to the **Windows UI** (taskbar, Start) and/or to **apps**.
 - Respects your manual changes until the next scheduled time.
 - Tray icon, optional start with Windows, and a CLI for scripts.
@@ -75,7 +75,7 @@ Exit codes: `0` ok, `1` failure, `2` invalid arguments, `3` the app is not runni
 | Executable size | 257 KB |
 
 It never polls: the process sleeps and only wakes for the exact time of the next
-change, a manual theme change, a system resume, or the shortcut and CLI.
+change, a manual theme change, a system resume, or the CLI.
 
 ## Layout
 
@@ -83,10 +83,18 @@ change, a manual theme change, a system resume, or the shortcut and CLI.
 src/settings.cpp  settings in the registry
 src/theme.cpp     theme read/write and system notification
 src/schedule.cpp  schedule, solar math and next change
-src/main.cpp      tray, hotkey, notifications, IPC
+src/main.cpp      tray, notifications, IPC
 src/ui.cpp        settings window
 src/cli.cpp       lsl.exe
 ```
+
+## Troubleshooting
+
+- **Coordinates do not stick.** They accept a dot or a comma (`-34.6037` or
+  `-34,6037`). An unparseable value is rejected and the previous one is kept.
+- **The taskbar on a secondary monitor keeps the old colour.** Windows caches the
+  taskbar theme per monitor and sometimes misses the repaint. Switch the theme
+  again from the tray or with `lsl toggle` to force a repaint.
 
 ## Limitations
 
