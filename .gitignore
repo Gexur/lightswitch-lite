@@ -1,0 +1,6 @@
+obj/
+dist/
+docs/crop-*.png
+docs/settings.png
+ui-trace.log
+tools/*.exe
