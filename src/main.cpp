@@ -694,7 +694,14 @@ void appConfigChanged()
     publish();
 }
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
+// Locale-independent case-insensitive compare. lstrcmpiW folds case using the
+// user's locale, so a Turkish or Azerbaijani locale makes "I" and "i" differ.
+bool argIs(const wchar_t* value, const wchar_t* expected)
+{
+    return CompareStringOrdinal(value, -1, expected, -1, TRUE) == CSTR_EQUAL;
+}
+
+int WINAPI wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ PWSTR, _In_ int)
 {
     gInstance = instance;
 
@@ -707,33 +714,33 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     for (int i = 1; argv && i < argc; ++i)
     {
-        if (!lstrcmpiW(argv[i], L"--background") || !lstrcmpiW(argv[i], L"--minimized"))
+        if (argIs(argv[i], L"--background") || argIs(argv[i], L"--minimized"))
             background = true;
-        else if (!lstrcmpiW(argv[i], L"--light"))
+        else if (argIs(argv[i], L"--light"))
             command = LSL_CMD_LIGHT;
-        else if (!lstrcmpiW(argv[i], L"--dark"))
+        else if (argIs(argv[i], L"--dark"))
             command = LSL_CMD_DARK;
-        else if (!lstrcmpiW(argv[i], L"--toggle"))
+        else if (argIs(argv[i], L"--toggle"))
             command = LSL_CMD_TOGGLE;
-        else if (!lstrcmpiW(argv[i], L"--mode") && i + 1 < argc)
+        else if (argIs(argv[i], L"--mode") && i + 1 < argc)
         {
             const wchar_t* name = argv[++i];
-            if (!lstrcmpiW(name, L"off"))
+            if (argIs(name, L"off"))
             {
                 hasMode = true;
                 modeArg = 0;
             }
-            else if (!lstrcmpiW(name, L"fixed"))
+            else if (argIs(name, L"fixed"))
             {
                 hasMode = true;
                 modeArg = 1;
             }
-            else if (!lstrcmpiW(name, L"solar") || !lstrcmpiW(name, L"sunrise"))
+            else if (argIs(name, L"solar") || argIs(name, L"sunrise"))
             {
                 hasMode = true;
                 modeArg = 2;
             }
-            else if (!lstrcmpiW(name, L"nightlight"))
+            else if (argIs(name, L"nightlight"))
             {
                 hasMode = true;
                 modeArg = 3;

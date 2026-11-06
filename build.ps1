@@ -16,7 +16,7 @@ if (-not $vs) { throw 'No C++ tools found (install the "Desktop development with
 $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
 if (-not (Test-Path $vcvars)) { throw "Falta $vcvars" }
 
-$flags = '/nologo /c /O2 /GL /MT /W4 /utf-8 /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00'
+$flags = '/nologo /c /O2 /GL /MT /W4 /WX /permissive- /std:c++20 /utf-8 /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00'
 
 $script = @"
 @echo off

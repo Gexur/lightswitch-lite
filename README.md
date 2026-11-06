@@ -77,6 +77,17 @@ Exit codes: `0` ok, `1` failure, `2` invalid arguments, `3` the app is not runni
 It never polls: the process sleeps and only wakes for the exact time of the next
 change, a manual theme change, a system resume, or the CLI.
 
+## Code quality
+
+Compiled with `/W4 /WX /permissive- /std:c++20`: zero warnings, warnings are
+errors. The tree is checked with MSVC `/analyze` and exercised under
+AddressSanitizer (unit tests and the full app) with no findings. Ownership uses
+`std::unique_ptr`, comparisons against command-line switches use
+`CompareStringOrdinal` instead of the locale-dependent `lstrcmpiW`.
+
+The project is deliberately plain Win32 with no CMake and no exceptions, so error
+codes are used consistently instead of mixing patterns.
+
 ## Layout
 
 ```

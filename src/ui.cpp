@@ -1,6 +1,7 @@
-#include "core.h"
+﻿#include "core.h"
 
 #include <dwmapi.h>
+#include <memory>
 #include <uxtheme.h>
 #include <cmath>
 #include <cstdio>
@@ -81,7 +82,7 @@ namespace
         HICON hIcon;
     };
 
-    Ui* gUi = nullptr;
+    std::unique_ptr<Ui> gUi;
     bool gClassReady = false;
 
     int px(const Ui* u, int value)
@@ -750,14 +751,12 @@ namespace
             u = stateOf(hwnd);
             if (u)
             {
-                if (gUi == u)
-                    gUi = nullptr;
                 dropFonts(u);
                 dropBrushes(u);
                 if (u->hIcon)
                     DestroyIcon(u->hIcon);
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
-                delete u;
+                gUi.reset();
                 appTrimMemory();
             }
             return 0;
@@ -861,15 +860,14 @@ void uiShow(HWND owner)
 
     if (gUi && gUi->hwnd)
     {
-        showWindow(gUi);
+        showWindow(gUi.get());
         return;
     }
 
     HINSTANCE instance = GetModuleHandleW(nullptr);
 
-    Ui* u = new Ui{};
-    if (!u)
-        return;
+    gUi = std::make_unique<Ui>();
+    Ui* u = gUi.get();
 
     u->dpi = GetDpiForSystem();
 
@@ -887,7 +885,7 @@ void uiShow(HWND owner)
     {
         if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
         {
-            delete u;
+            gUi.reset();
             return;
         }
         gClassReady = true;
@@ -908,12 +906,11 @@ void uiShow(HWND owner)
     {
         if (u->hIcon)
             DestroyIcon(u->hIcon);
-        delete u;
+        gUi.reset();
         return;
     }
 
     SetWindowLongPtrW(u->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(u));
-    gUi = u;
 
     u->dpi = GetDpiForWindow(u->hwnd);
     buildFonts(u);
@@ -937,9 +934,9 @@ void uiRefresh()
     gUi->autoStart = autostartGet();
     gUi->loading = false;
 
-    buildPalette(gUi);
-    applyControlTheme(gUi);
-    syncControls(gUi);
+    buildPalette(gUi.get());
+    applyControlTheme(gUi.get());
+    syncControls(gUi.get());
     InvalidateRect(gUi->hwnd, nullptr, TRUE);
 }
 
@@ -947,8 +944,8 @@ void uiThemeChanged()
 {
     if (!gUi || !gUi->hwnd || !IsWindowVisible(gUi->hwnd))
         return;
-    buildPalette(gUi);
-    applyControlTheme(gUi);
+    buildPalette(gUi.get());
+    applyControlTheme(gUi.get());
     InvalidateRect(gUi->hwnd, nullptr, TRUE);
 }
 
